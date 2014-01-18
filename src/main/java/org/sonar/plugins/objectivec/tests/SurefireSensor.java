@@ -32,16 +32,22 @@ import org.sonar.api.resources.Resource;
 import org.sonar.plugins.objectivec.core.ObjectiveC;
 import org.sonar.plugins.surefire.api.AbstractSurefireParser;
 import org.sonar.plugins.surefire.api.SurefireUtils;
+import org.sonar.api.config.Settings;
 
 import java.io.File;
 
 public class SurefireSensor implements Sensor {
 
   private static final Logger LOG = LoggerFactory.getLogger(SurefireSensor.class);
+  private Settings settings;
 
   @DependsUpon
   public Class<?> dependsUponCoverageSensors() {
     return CoverageExtension.class;
+  }
+
+  public SurefireSensor(AbstractSurefireParser parser, Settings settings){
+    this.settings = settings;
   }
 
   public boolean shouldExecuteOnProject(Project project) {
@@ -49,7 +55,7 @@ public class SurefireSensor implements Sensor {
   }
 
   public void analyse(Project project, SensorContext context) {
-    File dir = SurefireUtils.getReportsDirectory(project);
+    File dir = SurefireUtils.getReportsDirectory(settings,project);
     collect(project, context, dir);
   }
 
@@ -60,7 +66,7 @@ public class SurefireSensor implements Sensor {
 
   private static final AbstractSurefireParser SUREFIRE_PARSER = new AbstractSurefireParser() {
     @Override
-    protected Resource<?> getUnitTestResource(String classKey) {
+    protected Resource getUnitTestResource(String classKey) {
       String filename = classKey.replace('.', '/') + ".m";
       org.sonar.api.resources.File sonarFile = new org.sonar.api.resources.File(filename);
       sonarFile.setQualifier(Qualifiers.UNIT_TEST_FILE);

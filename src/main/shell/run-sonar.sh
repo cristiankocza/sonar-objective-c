@@ -137,9 +137,11 @@ echo "Running run-sonar.sh..."
 ## CHECK PREREQUISITES
 
 # xctool, gcovr and oclint installed
-testIsInstalled xctool
+#testIsInstalled xctool
+testIsInstalled xcodebuild
 testIsInstalled gcovr
 testIsInstalled oclint
+testIsInstalled oclint-xcodebuild
 
 # sonar-project.properties in current directory
 if [ ! -f sonar-project.properties ]; then
@@ -153,8 +155,10 @@ workspaceFile=''; readParameter workspaceFile 'sonar.objectivec.workspace'
 projectFile=''; readParameter projectFile 'sonar.objectivec.project'
 if [[ "$workspaceFile" != "" ]] ; then
 	xctoolCmdPrefix="xctool -workspace $workspaceFile -sdk iphonesimulator ARCHS=i386 VALID_ARCHS=i386 CURRENT_ARCH=i386 ONLY_ACTIVE_ARCH=NO"
+	xcodebuildCmdPrefix="xcodebuild -workspace $workspaceFile"
 else
 	xctoolCmdPrefix="xctool -project $projectFile -sdk iphonesimulator ARCHS=i386 VALID_ARCHS=i386 CURRENT_ARCH=i386 ONLY_ACTIVE_ARCH=NO"
+	xcodebuildCmdPrefix="xcodebuild -project $projectFile"
 fi	
 
 # Source directories for .h/.m files
@@ -217,8 +221,12 @@ fi
 
 # Extracting project information needed later
 echo -n 'Extracting Xcode project information'
-runCommand /dev/stdout $xctoolCmdPrefix -scheme "$appScheme" clean
-runCommand /dev/stdout $xctoolCmdPrefix -scheme "$appScheme" -reporter json-compilation-database:compile_commands.json build
+#runCommand /dev/stdout $xctoolCmdPrefix -scheme "$appScheme" clean
+#runCommand /dev/stdout $xctoolCmdPrefix -scheme "$appScheme" -reporter json-compilation-database:compile_commands.json build
+runCommand /dev/stdout $xcodebuildCmdPrefix -scheme "$appScheme" clean
+runCommand xcodebuild.log $xcodebuildCmdPrefix -scheme "$appScheme" build
+runCommand /dev/stdout oclint-xcodebuild
+
 
 # Unit tests and coverage
 if [ "$testScheme" = "" ]; then
@@ -230,7 +238,10 @@ if [ "$testScheme" = "" ]; then
 else
 
 	echo -n 'Running tests using xctool'	
-	runCommand sonar-reports/TEST-report.xml $xctoolCmdPrefix -scheme "$testScheme" -reporter junit GCC_GENERATE_TEST_COVERAGE_FILES=YES GCC_INSTRUMENT_PROGRAM_FLOW_ARCS=YES test
+	#runCommand sonar-reports/TEST-report.xml $xctoolCmdPrefix -scheme "$testScheme" -reporter junit GCC_GENERATE_TEST_COVERAGE_FILES=YES GCC_INSTRUMENT_PROGRAM_FLOW_ARCS=YES test
+	runCommand xcodebuild.log $xcodebuildCmdPrefix -scheme "$testScheme" clean test
+	runCommand /dev/stdout oclint-xcodebuild
+	cat xcodebuild.log | ./ocunit2junit
 
 	echo -n 'Computing coverage report'
 
@@ -299,3 +310,4 @@ runCommand /dev/stdout sonar-runner
 stopProgress
 
 exit 0
+
